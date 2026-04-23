@@ -18,6 +18,8 @@ import {
   deleteClassroom,
   addStudentToClassroom,
   removeStudentFromClassroom,
+  getExamLogs,
+  getExamLogStats,
 } from "../controllers/adminController.js";
 import { authMiddleware, adminMiddleware } from "../middleware/authMiddleware.js";
 
@@ -52,5 +54,9 @@ router.put("/classrooms/:id", updateClassroom);
 router.delete("/classrooms/:id", deleteClassroom);
 router.post("/classrooms/:classroomId/students", addStudentToClassroom);
 router.delete("/classrooms/:classroomId/students/:userId", removeStudentFromClassroom);
+
+// Exam Logs
+router.get("/logs", getExamLogs);
+router.get("/logs/stats", getExamLogStats);
 
 export default router;

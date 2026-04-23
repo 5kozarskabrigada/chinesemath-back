@@ -519,3 +519,105 @@ export async function removeStudentFromClassroom(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ─── Exam Logs ───────────────────────────────────────────────────────────────
+
+export async function getExamLogs(req, res) {
+  const { examId, userId, eventType, startDate, endDate, limit = 100 } = req.query;
+
+  try {
+    let query = `
+      SELECT 
+        l.id,
+        l.event_type,
+        l.event_data,
+        l.created_at,
+        u.username,
+        u.first_name,
+        u.last_name,
+        e.title as exam_title,
+        e.access_code as exam_code
+      FROM exam_logs l
+      LEFT JOIN users u ON l.user_id = u.id
+      LEFT JOIN exams e ON l.exam_id = e.id
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (examId) {
+      query += ` AND l.exam_id = $${paramIndex}`;
+      params.push(examId);
+      paramIndex++;
+    }
+
+    if (userId) {
+      query += ` AND l.user_id = $${paramIndex}`;
+      params.push(userId);
+      paramIndex++;
+    }
+
+    if (eventType) {
+      query += ` AND l.event_type = $${paramIndex}`;
+      params.push(eventType);
+      paramIndex++;
+    }
+
+    if (startDate) {
+      query += ` AND l.created_at >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+
+    if (endDate) {
+      query += ` AND l.created_at <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY l.created_at DESC LIMIT $${paramIndex}`;
+    params.push(parseInt(limit));
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("getExamLogs error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function getExamLogStats(req, res) {
+  const { examId, userId } = req.query;
+
+  try {
+    let query = `
+      SELECT 
+        event_type,
+        COUNT(*) as count
+      FROM exam_logs
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (examId) {
+      query += ` AND exam_id = $${paramIndex}`;
+      params.push(examId);
+      paramIndex++;
+    }
+
+    if (userId) {
+      query += ` AND user_id = $${paramIndex}`;
+      params.push(userId);
+      paramIndex++;
+    }
+
+    query += ` GROUP BY event_type ORDER BY count DESC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("getExamLogStats error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

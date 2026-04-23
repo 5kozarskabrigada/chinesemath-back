@@ -205,3 +205,26 @@ export async function getMyExams(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ─── Student: log exam event ─────────────────────────────────────────────────
+
+export async function logExamEvent(req, res) {
+  const { examId, eventType, eventData, submissionId } = req.body;
+
+  if (!examId || !eventType) {
+    return res.status(400).json({ error: "examId and eventType are required" });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO exam_logs (user_id, exam_id, submission_id, event_type, event_data)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user.id, examId, submissionId || null, eventType, JSON.stringify(eventData || {})]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("logExamEvent error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

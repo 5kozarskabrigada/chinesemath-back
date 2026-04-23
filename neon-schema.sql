@@ -126,6 +126,24 @@ CREATE TABLE IF NOT EXISTS classroom_members (
 CREATE INDEX IF NOT EXISTS idx_classroom_members_classroom ON classroom_members(classroom_id);
 CREATE INDEX IF NOT EXISTS idx_classroom_members_user ON classroom_members(user_id);
 
+-- ─── Exam Logs (Audit Trail) ─────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS exam_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    exam_id UUID REFERENCES exams(id) ON DELETE CASCADE,
+    submission_id UUID REFERENCES exam_submissions(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    event_data JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_exam_logs_user_id ON exam_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_exam_logs_exam_id ON exam_logs(exam_id);
+CREATE INDEX IF NOT EXISTS idx_exam_logs_submission_id ON exam_logs(submission_id);
+CREATE INDEX IF NOT EXISTS idx_exam_logs_event_type ON exam_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_exam_logs_created_at ON exam_logs(created_at DESC);
+
 -- ─── Default admin user (password: Admin@1234) ───────────────
 -- Change this password immediately after first login!
 

@@ -5,6 +5,7 @@ import {
   submitExam,
   getMyResult,
   getMyExams,
+  logExamEvent,
 } from "../controllers/examController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -17,5 +18,6 @@ router.get("/my", getMyExams);
 router.get("/:examId/questions", getExamQuestions);
 router.post("/:examId/submit", submitExam);
 router.get("/:examId/result", getMyResult);
+router.post("/log", logExamEvent);
 
 export default router;

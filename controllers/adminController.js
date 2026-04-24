@@ -202,8 +202,8 @@ export async function updateExam(req, res) {
     );
 
     if (hasQuestions) {
-      // Soft-delete existing questions then re-insert
-      await client.query(`UPDATE questions SET is_deleted = true WHERE exam_id = $1`, [examId]);
+      // Delete existing questions then re-insert
+      await client.query(`DELETE FROM questions WHERE exam_id = $1`, [examId]);
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
         await client.query(

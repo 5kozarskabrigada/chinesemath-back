@@ -23,6 +23,19 @@ import {
 } from "../controllers/adminController.js";
 import { authMiddleware, adminMiddleware } from "../middleware/authMiddleware.js";
 
+// ─── Recycle Bin ───────────────────────────────────────────────────────────
+import {
+  getRecycleBin,
+  restoreUser,
+  restoreExam,
+  restoreQuestion,
+  restoreClassroom,
+  permanentlyDeleteUser,
+  permanentlyDeleteExam,
+  permanentlyDeleteQuestion,
+  permanentlyDeleteClassroom,
+} from "../controllers/adminController.js";
+
 const router = express.Router();
 
 router.use(authMiddleware, adminMiddleware);
@@ -58,5 +71,21 @@ router.delete("/classrooms/:classroomId/students/:userId", removeStudentFromClas
 // Exam Logs
 router.get("/logs", getExamLogs);
 router.get("/logs/stats", getExamLogStats);
+
+// ─── Recycle Bin ───────────────────────────────────────────────────────────
+// List all deleted items
+router.get("/recycle-bin", getRecycleBin);
+
+// Restore endpoints
+router.post("/recycle-bin/users/:userId/restore", restoreUser);
+router.post("/recycle-bin/exams/:examId/restore", restoreExam);
+router.post("/recycle-bin/questions/:questionId/restore", restoreQuestion);
+router.post("/recycle-bin/classrooms/:classroomId/restore", restoreClassroom);
+
+// Permanent delete endpoints
+router.delete("/recycle-bin/users/:userId", permanentlyDeleteUser);
+router.delete("/recycle-bin/exams/:examId", permanentlyDeleteExam);
+router.delete("/recycle-bin/questions/:questionId", permanentlyDeleteQuestion);
+router.delete("/recycle-bin/classrooms/:classroomId", permanentlyDeleteClassroom);
 
 export default router;

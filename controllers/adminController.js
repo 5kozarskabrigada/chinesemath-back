@@ -621,3 +621,113 @@ export async function getExamLogStats(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// ─── Recycle Bin Endpoints ───────────────────────────────────────────────
+
+export async function getRecycleBin(req, res) {
+  try {
+    const [users, exams, questions, classrooms] = await Promise.all([
+      pool.query(`SELECT id, username, email, first_name, last_name, role, created_at FROM users WHERE is_deleted = true ORDER BY created_at DESC`),
+      pool.query(`SELECT id, title, description, access_code, status, created_at FROM exams WHERE is_deleted = true ORDER BY created_at DESC`),
+      pool.query(`SELECT id, exam_id, question_number, question_text, created_at FROM questions WHERE is_deleted = true ORDER BY created_at DESC`),
+      pool.query(`SELECT id, name, description, created_at FROM classrooms WHERE is_deleted = true ORDER BY created_at DESC`),
+    ]);
+    res.json({
+      users: users.rows,
+      exams: exams.rows,
+      questions: questions.rows,
+      classrooms: classrooms.rows,
+    });
+  } catch (err) {
+    console.error("getRecycleBin error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function restoreUser(req, res) {
+  const { userId } = req.params;
+  try {
+    await pool.query(`UPDATE users SET is_deleted = false WHERE id = $1`, [userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("restoreUser error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function restoreExam(req, res) {
+  const { examId } = req.params;
+  try {
+    await pool.query(`UPDATE exams SET is_deleted = false, status = 'draft' WHERE id = $1`, [examId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("restoreExam error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function restoreQuestion(req, res) {
+  const { questionId } = req.params;
+  try {
+    await pool.query(`UPDATE questions SET is_deleted = false WHERE id = $1`, [questionId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("restoreQuestion error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function restoreClassroom(req, res) {
+  const { classroomId } = req.params;
+  try {
+    await pool.query(`UPDATE classrooms SET is_deleted = false WHERE id = $1`, [classroomId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("restoreClassroom error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function permanentlyDeleteUser(req, res) {
+  const { userId } = req.params;
+  try {
+    await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("permanentlyDeleteUser error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function permanentlyDeleteExam(req, res) {
+  const { examId } = req.params;
+  try {
+    await pool.query(`DELETE FROM exams WHERE id = $1`, [examId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("permanentlyDeleteExam error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function permanentlyDeleteQuestion(req, res) {
+  const { questionId } = req.params;
+  try {
+    await pool.query(`DELETE FROM questions WHERE id = $1`, [questionId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("permanentlyDeleteQuestion error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function permanentlyDeleteClassroom(req, res) {
+  const { classroomId } = req.params;
+  try {
+    await pool.query(`DELETE FROM classrooms WHERE id = $1`, [classroomId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("permanentlyDeleteClassroom error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}

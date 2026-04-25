@@ -147,6 +147,17 @@ io.on("connection", (socket) => {
       });
     });
 
+    // Phone camera ready notification
+    socket.on("phone_camera_ready", (data) => {
+      console.log(`Phone camera ready: Student ${data.studentId} in exam ${data.examId}`);
+      // Relay to all sockets in the exam room (including the laptop)
+      io.to(`exam-${data.examId}`).emit("phone_camera_ready", {
+        studentId: data.studentId,
+        examId: data.examId,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
     socket.on("disconnect", () => {
       console.log(`Student ${studentId} left exam ${examId}: ${socket.id}`);
       socket.to(room).emit("student_left", {

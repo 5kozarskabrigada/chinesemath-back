@@ -28,7 +28,7 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/exams", phoneCameraRoutes);
+app.use("/api/phone-camera", phoneCameraRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/admin", adminRoutes);
 

@@ -5,15 +5,14 @@ const router = express.Router();
 // Phone camera ready status (in-memory store for simplicity) - no auth required
 const phoneCameraReadyStatus = new Map(); // key: examId_studentId, value: timestamp
 
-router.post("/:examId/phone-camera-ready", (req, res) => {
-  const { examId } = req.params;
-  const { studentId } = req.body;
+router.post("/ready", (req, res) => {
+  const { examId, studentId } = req.body;
   const key = `${examId}_${studentId}`;
   phoneCameraReadyStatus.set(key, Date.now());
   res.json({ success: true });
 });
 
-router.get("/:examId/phone-camera-ready/:studentId", (req, res) => {
+router.get("/ready/:examId/:studentId", (req, res) => {
   const { examId, studentId } = req.params;
   const key = `${examId}_${studentId}`;
   const timestamp = phoneCameraReadyStatus.get(key);

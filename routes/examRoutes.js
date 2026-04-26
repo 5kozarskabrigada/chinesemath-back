@@ -6,6 +6,7 @@ import {
   getMyResult,
   getMyExams,
   logExamEvent,
+  getExamById,
 } from "../controllers/examController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -34,6 +35,7 @@ router.get("/:examId/phone-camera-ready/:studentId", (req, res) => {
 // All other routes require auth
 router.use(authMiddleware);
 
+router.get("/:examId", getExamById);
 router.post("/join", joinExam);
 router.get("/my", getMyExams);
 router.get("/:examId/questions", getExamQuestions);

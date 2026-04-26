@@ -1,6 +1,24 @@
 import { pool } from "../db.js";
 import { v4 as uuidv4 } from "uuid";
 
+// ─── Get exam details by ID ───────────────────────────────────────────────────
+
+export async function getExamById(req, res) {
+  const { examId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT id, title, description, duration_minutes, total_questions, status, access_code
+       FROM exams WHERE id = $1 AND is_deleted = false`,
+      [examId]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: "Exam not found" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("getExamById error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 // ─── Student: join exam by access code ─────────────────────────────────────
 
 export async function joinExam(req, res) {

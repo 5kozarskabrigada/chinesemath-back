@@ -25,5 +25,6 @@ jobs:
             docker system prune -f
             sleep 3
             docker compose up -d --build
-            sleep 20
+            sleep 30
+            docker logs chinesemath-backend-backend-1
             curl -sf http://localhost:4000/api/health || exit 1

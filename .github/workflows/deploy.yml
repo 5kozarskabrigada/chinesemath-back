@@ -28,4 +28,9 @@ jobs:
             sleep 30
             docker logs chinesemath-backend-backend-1
             curl -sf http://localhost:4000/api/health || exit 1
-            sudo systemctl restart nginx
+            cd /opt/chinesemath-frontend
+            git pull origin main
+            cp nginx.conf /tmp/nginx.conf
+            sudo cp /tmp/nginx.conf /etc/nginx/sites-available/examroomedu
+            sudo ln -sf /etc/nginx/sites-available/examroomedu /etc/nginx/sites-enabled/examroomedu
+            sudo nginx -t && sudo systemctl restart nginx

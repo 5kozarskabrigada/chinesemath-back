@@ -21,6 +21,7 @@ jobs:
             echo DATABASE_URL="${{ secrets.DATABASE_URL }}" > .env
             echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
             docker compose down --remove-orphans -v --timeout 30
+            fuser -k 4000/tcp 2>/dev/null || true
             sleep 2
             docker compose up -d --build
             sleep 15

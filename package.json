@@ -1,7 +1,7 @@
 {
   "name": "chinesemath-back",
   "version": "1.0.0",
-  "description": "Chinese Math Mock Exam — Backend API",
+  "description": "Chinese Math Mock Exam — Backend API (trigger nginx config update)",
   "type": "module",
   "main": "server.js",
   "scripts": {

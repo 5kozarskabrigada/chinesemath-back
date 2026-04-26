@@ -8,6 +8,7 @@ import { Server } from "socket.io";
 import authRoutes from "./routes/authRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import phoneCameraRoutes from "./routes/phoneCameraRoutes.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/exams", phoneCameraRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/admin", adminRoutes);
 

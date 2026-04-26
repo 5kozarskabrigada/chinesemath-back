@@ -160,6 +160,41 @@ io.on("connection", (socket) => {
       });
     });
 
+    // Admin message to student
+    socket.on("admin_message", (data) => {
+      const { studentId, message, type } = data;
+      console.log(`Admin message to student ${studentId}: ${message}`);
+      // Send to the specific student in the exam room
+      io.to(room).emit("student_admin_message", {
+        studentId,
+        message,
+        type,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Admin request camera check
+    socket.on("admin_request_camera_check", (data) => {
+      const { studentId } = data;
+      console.log(`Admin requesting camera check for student ${studentId}`);
+      // Send to the specific student
+      io.to(room).emit("student_camera_check_request", {
+        studentId,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Admin terminate exam
+    socket.on("admin_terminate_exam", (data) => {
+      const { studentId } = data;
+      console.log(`Admin terminating exam for student ${studentId}`);
+      // Send to the specific student
+      io.to(room).emit("student_exam_terminated", {
+        studentId,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
     socket.on("disconnect", () => {
       console.log(`Student ${studentId} left exam ${examId}: ${socket.id}`);
       socket.to(room).emit("student_left", {

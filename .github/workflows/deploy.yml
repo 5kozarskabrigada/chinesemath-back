@@ -20,8 +20,8 @@ jobs:
             git pull origin main
             echo DATABASE_URL="${{ secrets.DATABASE_URL }}" > .env
             echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
-            docker compose down --remove-orphans -v
-            pkill -f "node:server" || true
+            docker compose down --remove-orphans -v --timeout 30
+            sleep 2
             docker compose up -d --build
-            sleep 10
+            sleep 15
             curl -sf http://localhost:4000/api/health || exit 1

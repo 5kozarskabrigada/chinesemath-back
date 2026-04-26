@@ -16,32 +16,53 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            # --- Deploy Backend ---
             cd /opt/chinesemath-backend
             git pull origin main
             echo DATABASE_URL="${{ secrets.DATABASE_URL }}" > .env
             echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
             docker compose down --remove-orphans -v --timeout 30 || true
-            docker rm -f $(docker ps -aq) 2>/dev/null || true
             docker system prune -f
             sleep 3
             docker compose up -d --build
             sleep 30
             docker logs chinesemath-backend-backend-1
             curl -sf http://localhost:4000/api/health || exit 1
-            # Debug: Check if backend is accessible
-            echo "Checking backend accessibility..."
-            docker ps | grep chinesemath-backend
-            netstat -tlnp | grep 4000 || ss -tlnp | grep 4000
-            curl -v http://localhost:4000/api/health
+            
+            # --- Rebuild Frontend (backend deploy may have stopped it) ---
             cd /opt/chinesemath-frontend
             git pull origin main
-            # Remove all conflicting nginx configs
-            sudo rm -f /etc/nginx/sites-enabled/examroomedu /etc/nginx/sites-available/examroomedu
-            sudo rm -f /etc/nginx/sites-enabled/default
+            docker compose up -d --build
+            sleep 5
+            curl -sf http://localhost:3000/ || echo "WARNING: Frontend not responding"
+            
+            # --- Fix Nginx: Remove ALL configs with examroomedu ---
+            echo "=== Debug: Finding all nginx configs with examroomedu ==="
+            sudo grep -rl "examroomedu" /etc/nginx/ 2>/dev/null || echo "No configs found"
+            echo "=== Listing all sites-enabled ==="
+            ls -la /etc/nginx/sites-enabled/ 2>/dev/null || true
+            echo "=== Listing all conf.d ==="
+            ls -la /etc/nginx/conf.d/ 2>/dev/null || true
+            
+            # Remove EVERYTHING in sites-enabled and conf.d
+            sudo rm -f /etc/nginx/sites-enabled/*
+            sudo rm -f /etc/nginx/conf.d/*
+            
+            # Deploy fresh config
             sudo cp nginx.conf /etc/nginx/sites-available/examroomedu
             sudo ln -sf /etc/nginx/sites-available/examroomedu /etc/nginx/sites-enabled/examroomedu
-            sudo nginx -t && sudo systemctl restart nginx
-            # Debug: Check nginx status
-            echo "Checking nginx status..."
+            
+            # Test and restart
+            sudo nginx -t
+            sudo systemctl restart nginx
+            
+            # Verify
+            echo "=== Nginx status ==="
             sudo systemctl status nginx --no-pager
+            echo "=== Nginx error log ==="
             sudo tail -20 /var/log/nginx/error.log
+            echo "=== Docker containers ==="
+            docker ps
+            echo "=== Curl tests ==="
+            curl -sf http://localhost:4000/api/health && echo "Backend OK" || echo "Backend FAIL"
+            curl -sf http://localhost:3000/ > /dev/null && echo "Frontend OK" || echo "Frontend FAIL"

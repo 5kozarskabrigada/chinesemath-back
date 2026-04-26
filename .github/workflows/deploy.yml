@@ -20,9 +20,10 @@ jobs:
             git pull origin main
             echo DATABASE_URL="${{ secrets.DATABASE_URL }}" > .env
             echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
-            docker compose down --remove-orphans -v --timeout 30
-            fuser -k 4000/tcp 2>/dev/null || true
-            sleep 2
+            docker compose down --remove-orphans -v --timeout 30 || true
+            docker rm -f $(docker ps -aq) 2>/dev/null || true
+            docker system prune -f
+            sleep 3
             docker compose up -d --build
-            sleep 15
+            sleep 20
             curl -sf http://localhost:4000/api/health || exit 1

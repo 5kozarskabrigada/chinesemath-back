@@ -28,4 +28,4 @@ jobs:
             sleep 30
             docker logs chinesemath-backend-backend-1
             curl -sf http://localhost:4000/api/health || exit 1
-            sudo nginx -t && sudo systemctl reload nginx
+            sudo systemctl restart nginx

@@ -32,10 +32,13 @@ router.get("/:examId/phone-camera-ready/:studentId", (req, res) => {
   res.json({ ready: !!isReady });
 });
 
+// Get exam details by ID (public - no auth required)
+// Must come after more specific routes like /:examId/questions
+router.get("/:examId", getExamById);
+
 // All other routes require auth
 router.use(authMiddleware);
 
-router.get("/:examId", getExamById);
 router.post("/join", joinExam);
 router.get("/my", getMyExams);
 router.get("/:examId/questions", getExamQuestions);

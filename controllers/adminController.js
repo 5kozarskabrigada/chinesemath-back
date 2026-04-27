@@ -721,6 +721,84 @@ export async function permanentlyDeleteQuestion(req, res) {
   }
 }
 
+// ─── Exam Sessions ──────────────────────────────────────────────────────────
+
+export async function getExamSessions(req, res) {
+  const { examId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT 
+        es.id as submission_id, es.user_id, es.score, es.total_correct, es.total_questions,
+        es.time_spent, es.status, es.submitted_at, es.created_at as started_at,
+        u.username, u.first_name, u.last_name,
+        (SELECT COUNT(*) FROM exam_logs l WHERE l.exam_id = $1 AND l.user_id = es.user_id 
+          AND l.event_type IN ('fullscreen_exit','window_blur','tab_hidden','monitoring_violation')) as suspicious_count,
+        (SELECT COUNT(*) FROM exam_logs l WHERE l.exam_id = $1 AND l.user_id = es.user_id 
+          AND l.event_type = 'camera_snapshot') as snapshot_count,
+        (SELECT COUNT(*) FROM exam_logs l WHERE l.exam_id = $1 AND l.user_id = es.user_id 
+          AND l.event_type = 'monitoring_message') as message_count,
+        (SELECT COUNT(*) FROM exam_logs l WHERE l.exam_id = $1 AND l.user_id = es.user_id 
+          AND l.event_type = 'monitoring_disqualify') as disqualified
+       FROM exam_submissions es
+       JOIN users u ON u.id = es.user_id
+       WHERE es.exam_id = $1
+       ORDER BY es.created_at DESC`,
+      [examId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("getExamSessions error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function getStudentSessionDetail(req, res) {
+  const { examId, studentId } = req.params;
+  try {
+    // Get submission info
+    const submissionResult = await pool.query(
+      `SELECT es.*, u.username, u.first_name, u.last_name, e.title as exam_title, e.duration_minutes
+       FROM exam_submissions es
+       JOIN users u ON u.id = es.user_id
+       JOIN exams e ON e.id = es.exam_id
+       WHERE es.exam_id = $1 AND es.user_id = $2`,
+      [examId, studentId]
+    );
+
+    // Get all logs for this student+exam (excluding camera_snapshot images for the list — we return those separately)
+    const logsResult = await pool.query(
+      `SELECT id, event_type, 
+        CASE WHEN event_type = 'camera_snapshot' 
+          THEN jsonb_build_object('cameraType', event_data->>'cameraType', 'timestamp', event_data->>'timestamp')
+          ELSE event_data 
+        END as event_data,
+        created_at
+       FROM exam_logs
+       WHERE exam_id = $1 AND user_id = $2
+       ORDER BY created_at ASC`,
+      [examId, studentId]
+    );
+
+    // Get camera snapshots separately (with images)
+    const snapshotsResult = await pool.query(
+      `SELECT id, event_data, created_at
+       FROM exam_logs
+       WHERE exam_id = $1 AND user_id = $2 AND event_type = 'camera_snapshot'
+       ORDER BY created_at ASC`,
+      [examId, studentId]
+    );
+
+    res.json({
+      submission: submissionResult.rows[0] || null,
+      timeline: logsResult.rows,
+      snapshots: snapshotsResult.rows,
+    });
+  } catch (err) {
+    console.error("getStudentSessionDetail error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 // ─── Monitoring Events ──────────────────────────────────────────────────────
 
 export async function getMonitoringEvents(req, res) {

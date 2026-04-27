@@ -55,6 +55,10 @@ const io = new Server(httpServer, {
   pingInterval: 25000,
 });
 
+// Throttle map for camera snapshot storage: key = `${examId}-${studentId}-${cameraType}`, value = last save timestamp
+const snapshotThrottles = new Map();
+const SNAPSHOT_INTERVAL_MS = 60000; // Save one snapshot every 60 seconds
+
 // Socket.IO connection handling
 io.on("connection", (socket) => {
   const { type, examId, studentId } = socket.handshake.query;
@@ -156,6 +160,16 @@ io.on("connection", (socket) => {
         cameraType: data.cameraType || "laptop",
         timestamp: data.timestamp,
       });
+      // Throttled snapshot save
+      const throttleKey = `${examId}-${studentId}-laptop`;
+      const lastSave = snapshotThrottles.get(throttleKey) || 0;
+      if (Date.now() - lastSave >= SNAPSHOT_INTERVAL_MS && data.data) {
+        snapshotThrottles.set(throttleKey, Date.now());
+        pool.query(
+          `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+          [examId, studentId, 'camera_snapshot', JSON.stringify({ cameraType: 'laptop', image: data.data, timestamp: data.timestamp || new Date().toISOString() })]
+        ).catch(err => console.error('Failed to save laptop snapshot:', err.message));
+      }
     });
 
     // Phone camera stream
@@ -166,6 +180,16 @@ io.on("connection", (socket) => {
         data: data.data,
         timestamp: data.timestamp,
       });
+      // Throttled snapshot save
+      const throttleKey = `${examId}-${studentId}-phone`;
+      const lastSave = snapshotThrottles.get(throttleKey) || 0;
+      if (Date.now() - lastSave >= SNAPSHOT_INTERVAL_MS && data.data) {
+        snapshotThrottles.set(throttleKey, Date.now());
+        pool.query(
+          `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+          [examId, studentId, 'camera_snapshot', JSON.stringify({ cameraType: 'phone', image: data.data, timestamp: data.timestamp || new Date().toISOString() })]
+        ).catch(err => console.error('Failed to save phone snapshot:', err.message));
+      }
     });
 
     // Camera status updates

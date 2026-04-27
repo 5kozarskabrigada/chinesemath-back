@@ -21,6 +21,8 @@ import {
   getExamLogs,
   getExamLogStats,
   getMonitoringEvents,
+  getExamSessions,
+  getStudentSessionDetail,
 } from "../controllers/adminController.js";
 import { authMiddleware, adminMiddleware } from "../middleware/authMiddleware.js";
 
@@ -75,6 +77,10 @@ router.get("/logs/stats", getExamLogStats);
 
 // Monitoring Events
 router.get("/exams/:examId/monitoring-events", getMonitoringEvents);
+
+// Exam Sessions
+router.get("/exams/:examId/sessions", getExamSessions);
+router.get("/exams/:examId/sessions/:studentId", getStudentSessionDetail);
 
 // ─── Recycle Bin ───────────────────────────────────────────────────────────
 // List all deleted items

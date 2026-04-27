@@ -726,23 +726,32 @@ export async function permanentlyDeleteQuestion(req, res) {
 export async function getExamSessions(req, res) {
   const { examId } = req.params;
   try {
+    // Get all students who have ANY activity for this exam (logs OR submissions)
     const result = await pool.query(
       `SELECT 
-        es.id as submission_id, es.user_id, es.score, es.total_correct, es.total_questions,
-        es.time_spent, es.status, es.submitted_at, es.created_at as started_at,
-        u.username, u.first_name, u.last_name,
-        (SELECT COUNT(*) FROM exam_logs l WHERE l.exam_id = $1 AND l.user_id = es.user_id 
-          AND l.event_type IN ('fullscreen_exit','window_blur','tab_hidden','monitoring_violation')) as suspicious_count,
-        (SELECT COUNT(*) FROM exam_logs l WHERE l.exam_id = $1 AND l.user_id = es.user_id 
-          AND l.event_type = 'camera_snapshot') as snapshot_count,
-        (SELECT COUNT(*) FROM exam_logs l WHERE l.exam_id = $1 AND l.user_id = es.user_id 
-          AND l.event_type = 'monitoring_message') as message_count,
-        (SELECT COUNT(*) FROM exam_logs l WHERE l.exam_id = $1 AND l.user_id = es.user_id 
-          AND l.event_type = 'monitoring_disqualify') as disqualified
-       FROM exam_submissions es
-       JOIN users u ON u.id = es.user_id
-       WHERE es.exam_id = $1
-       ORDER BY es.created_at DESC`,
+        u.id as user_id, u.username, u.first_name, u.last_name,
+        es.id as submission_id, es.score, es.total_correct, es.total_questions,
+        es.time_spent, es.status as submission_status, es.submitted_at,
+        COALESCE(es.created_at, MIN(l.created_at)) as started_at,
+        COUNT(CASE WHEN l.event_type IN ('fullscreen_exit','window_blur','tab_hidden','monitoring_violation') THEN 1 END) as suspicious_count,
+        COUNT(CASE WHEN l.event_type = 'camera_snapshot' THEN 1 END) as snapshot_count,
+        COUNT(CASE WHEN l.event_type = 'monitoring_message' THEN 1 END) as message_count,
+        COUNT(CASE WHEN l.event_type = 'monitoring_disqualify' THEN 1 END) as disqualified,
+        COUNT(l.id) as total_events,
+        CASE 
+          WHEN COUNT(CASE WHEN l.event_type = 'monitoring_disqualify' THEN 1 END) > 0 THEN 'disqualified'
+          WHEN es.status = 'submitted' THEN 'submitted'
+          WHEN es.status = 'in_progress' THEN 'in_progress'
+          ELSE 'joined'
+        END as session_status
+       FROM exam_logs l
+       JOIN users u ON u.id = l.user_id
+       LEFT JOIN exam_submissions es ON es.exam_id = $1 AND es.user_id = u.id
+       WHERE l.exam_id = $1
+       GROUP BY u.id, u.username, u.first_name, u.last_name,
+                es.id, es.score, es.total_correct, es.total_questions,
+                es.time_spent, es.status, es.submitted_at, es.created_at
+       ORDER BY COALESCE(es.created_at, MIN(l.created_at)) DESC`,
       [examId]
     );
     res.json(result.rows);

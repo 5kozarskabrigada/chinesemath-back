@@ -133,7 +133,7 @@ io.on("connection", (socket) => {
       socket.to(room).emit("student_camera_stream", {
         studentId,
         socketId: socket.id,
-        stream: data.stream,
+        data: data.data,
         cameraType: data.cameraType || "laptop",
         timestamp: data.timestamp,
       });
@@ -144,8 +144,24 @@ io.on("connection", (socket) => {
       socket.to(room).emit("student_phone_camera_stream", {
         studentId,
         socketId: socket.id,
-        stream: data.stream,
+        data: data.data,
         timestamp: data.timestamp,
+      });
+    });
+
+    // Camera status updates
+    socket.on("camera_status", (data) => {
+      socket.to(room).emit("camera_status", {
+        studentId,
+        ...data,
+      });
+    });
+
+    // Camera error notifications
+    socket.on("camera_error", (data) => {
+      socket.to(room).emit("camera_error", {
+        studentId,
+        ...data,
       });
     });
 

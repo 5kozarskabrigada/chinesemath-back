@@ -18,7 +18,8 @@ jobs:
           script: |
             # --- Deploy Backend ---
             cd /opt/chinesemath-backend
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             echo DATABASE_URL="${{ secrets.DATABASE_URL }}" > .env
             echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
             docker compose down --remove-orphans -v --timeout 30 || true
@@ -31,7 +32,8 @@ jobs:
             
             # --- Rebuild Frontend (backend deploy may have stopped it) ---
             cd /opt/chinesemath-frontend
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             docker compose up -d --build
             sleep 5
             curl -sf http://localhost:3000/ || echo "WARNING: Frontend not responding"

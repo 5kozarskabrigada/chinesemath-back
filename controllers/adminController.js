@@ -721,6 +721,35 @@ export async function permanentlyDeleteQuestion(req, res) {
   }
 }
 
+// ─── Monitoring Events ──────────────────────────────────────────────────────
+
+export async function getMonitoringEvents(req, res) {
+  const { examId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT 
+        l.id, l.event_type, l.event_data, l.created_at,
+        l.user_id as student_id,
+        u.username, u.first_name, u.last_name
+       FROM exam_logs l
+       LEFT JOIN users u ON l.user_id = u.id
+       WHERE l.exam_id = $1
+         AND l.event_type IN (
+           'monitoring_message', 'monitoring_disqualify',
+           'monitoring_camera_check', 'monitoring_violation',
+           'monitoring_student_joined', 'monitoring_student_left'
+         )
+       ORDER BY l.created_at DESC
+       LIMIT 200`,
+      [examId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("getMonitoringEvents error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 export async function permanentlyDeleteClassroom(req, res) {
   const { classroomId } = req.params;
   try {

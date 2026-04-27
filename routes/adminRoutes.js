@@ -20,6 +20,7 @@ import {
   removeStudentFromClassroom,
   getExamLogs,
   getExamLogStats,
+  getMonitoringEvents,
 } from "../controllers/adminController.js";
 import { authMiddleware, adminMiddleware } from "../middleware/authMiddleware.js";
 
@@ -71,6 +72,9 @@ router.delete("/classrooms/:classroomId/students/:userId", removeStudentFromClas
 // Exam Logs
 router.get("/logs", getExamLogs);
 router.get("/logs/stats", getExamLogStats);
+
+// Monitoring Events
+router.get("/exams/:examId/monitoring-events", getMonitoringEvents);
 
 // ─── Recycle Bin ───────────────────────────────────────────────────────────
 // List all deleted items

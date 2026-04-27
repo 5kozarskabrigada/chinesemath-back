@@ -9,6 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import phoneCameraRoutes from "./routes/phoneCameraRoutes.js";
+import { pool } from "./db.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -81,12 +82,18 @@ io.on("connection", (socket) => {
       const { targetStudentId, message, messageType } = data;
       console.log(`Admin message to student ${targetStudentId}: ${message} (type: ${messageType})`);
       // Send to the specific student in the exam room
+      const timestamp = new Date().toISOString();
       io.to(room).emit("student_admin_message", {
         studentId: targetStudentId,
         message,
         messageType,
-        timestamp: new Date().toISOString(),
+        timestamp,
       });
+      // Persist to DB
+      pool.query(
+        `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+        [examId, targetStudentId, 'monitoring_message', JSON.stringify({ message, messageType, timestamp })]
+      ).catch(err => console.error('Failed to save monitoring message:', err.message));
     });
 
     // Admin request camera check
@@ -103,10 +110,16 @@ io.on("connection", (socket) => {
     socket.on("admin_terminate_exam", (data) => {
       const { targetStudentId } = data;
       console.log(`Admin terminating exam for student ${targetStudentId}`);
+      const timestamp = new Date().toISOString();
       io.to(room).emit("student_exam_terminated", {
         studentId: targetStudentId,
-        timestamp: new Date().toISOString(),
+        timestamp,
       });
+      // Persist disqualification to DB
+      pool.query(
+        `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+        [examId, targetStudentId, 'monitoring_disqualify', JSON.stringify({ timestamp })]
+      ).catch(err => console.error('Failed to save disqualification:', err.message));
     });
 
     socket.on("disconnect", () => {
@@ -121,11 +134,17 @@ io.on("connection", (socket) => {
     console.log(`Student ${studentId} joined exam ${examId}: ${socket.id}`);
 
     // Notify admins that a new student joined
+    const joinTimestamp = new Date().toISOString();
     socket.to(room).emit("student_joined", {
       socketId: socket.id,
       studentId: studentId,
-      timestamp: new Date().toISOString(),
+      timestamp: joinTimestamp,
     });
+    // Persist student join to DB
+    pool.query(
+      `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+      [examId, studentId, 'monitoring_student_joined', JSON.stringify({ timestamp: joinTimestamp })]
+    ).catch(err => console.error('Failed to save student join:', err.message));
 
     // Camera stream from student (laptop camera)
     socket.on("camera_stream", (data) => {
@@ -168,13 +187,19 @@ io.on("connection", (socket) => {
     // Violation detection
     socket.on("violation_detected", (data) => {
       console.log(`Violation detected: Student ${studentId}, Type: ${data.type}`);
+      const violationTimestamp = data.timestamp || new Date().toISOString();
       socket.to(room).emit("student_violation", {
         studentId,
         socketId: socket.id,
         violationType: data.type,
         severity: data.severity,
-        timestamp: data.timestamp || new Date().toISOString(),
+        timestamp: violationTimestamp,
       });
+      // Persist violation to DB
+      pool.query(
+        `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+        [examId, studentId, 'monitoring_violation', JSON.stringify({ type: data.type, severity: data.severity, timestamp: violationTimestamp })]
+      ).catch(err => console.error('Failed to save violation:', err.message));
     });
 
     // Student status updates
@@ -200,11 +225,17 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
       console.log(`Student ${studentId} left exam ${examId}: ${socket.id}`);
+      const leftTimestamp = new Date().toISOString();
       socket.to(room).emit("student_left", {
         socketId: socket.id,
         studentId: studentId,
-        timestamp: new Date().toISOString(),
+        timestamp: leftTimestamp,
       });
+      // Persist student leave to DB
+      pool.query(
+        `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+        [examId, studentId, 'monitoring_student_left', JSON.stringify({ timestamp: leftTimestamp })]
+      ).catch(err => console.error('Failed to save student leave:', err.message));
     });
   }
 

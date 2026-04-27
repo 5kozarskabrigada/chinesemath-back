@@ -53,11 +53,12 @@ const io = new Server(httpServer, {
   cors: corsOptions,
   pingTimeout: 60000,
   pingInterval: 25000,
+  maxHttpBufferSize: 5e6, // 5MB to handle high-frequency camera frames
 });
 
 // Throttle map for camera snapshot storage: key = `${examId}-${studentId}-${cameraType}`, value = last save timestamp
 const snapshotThrottles = new Map();
-const SNAPSHOT_INTERVAL_MS = 60000; // Save one snapshot every 60 seconds
+const SNAPSHOT_INTERVAL_MS = 30000; // Save one snapshot every 30 seconds
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {

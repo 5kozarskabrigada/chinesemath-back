@@ -1,7 +1,7 @@
 {
   "name": "chinesemath-back",
   "version": "1.0.0",
-  "description": "Chinese Math Mock Exam — Backend API (apply nginx cache headers)",
+  "description": "Chinese Math Mock Exam — Backend API (remove static file blocks)",
   "type": "module",
   "main": "server.js",
   "scripts": {

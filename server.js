@@ -76,16 +76,38 @@ io.on("connection", (socket) => {
     socket.join(room);
     console.log(`Admin monitoring exam ${examId}: ${socket.id}`);
 
-    // Send list of active students in this exam
-    const studentsInRoom = Array.from(io.sockets.adapter.rooms.get(room) || [])
-      .map(id => io.sockets.sockets.get(id))
-      .filter(s => s && s.handshake.query.type === "student")
-      .map(s => ({
-        socketId: s.id,
-        studentId: s.handshake.query.studentId,
-      }));
+    // Handle admin sending messages to students
+    socket.on("admin_message", (data) => {
+      const { targetStudentId, message, messageType } = data;
+      console.log(`Admin message to student ${targetStudentId}: ${message} (type: ${messageType})`);
+      // Send to the specific student in the exam room
+      io.to(room).emit("student_admin_message", {
+        studentId: targetStudentId,
+        message,
+        messageType,
+        timestamp: new Date().toISOString(),
+      });
+    });
 
-    socket.emit("active_students", studentsInRoom);
+    // Admin request camera check
+    socket.on("admin_request_camera_check", (data) => {
+      const { targetStudentId } = data;
+      console.log(`Admin requesting camera check for student ${targetStudentId}`);
+      io.to(room).emit("student_camera_check_request", {
+        studentId: targetStudentId,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Admin terminate exam
+    socket.on("admin_terminate_exam", (data) => {
+      const { targetStudentId } = data;
+      console.log(`Admin terminating exam for student ${targetStudentId}`);
+      io.to(room).emit("student_exam_terminated", {
+        studentId: targetStudentId,
+        timestamp: new Date().toISOString(),
+      });
+    });
 
     socket.on("disconnect", () => {
       console.log(`Admin stopped monitoring exam ${examId}: ${socket.id}`);
@@ -156,41 +178,6 @@ io.on("connection", (socket) => {
       io.to(`exam-${data.examId}`).emit("phone_camera_ready", {
         studentId: data.studentId,
         examId: data.examId,
-        timestamp: new Date().toISOString(),
-      });
-    });
-
-    // Admin message to student
-    socket.on("admin_message", (data) => {
-      const { studentId, message, type } = data;
-      console.log(`Admin message to student ${studentId}: ${message}`);
-      // Send to the specific student in the exam room
-      io.to(room).emit("student_admin_message", {
-        studentId,
-        message,
-        type,
-        timestamp: new Date().toISOString(),
-      });
-    });
-
-    // Admin request camera check
-    socket.on("admin_request_camera_check", (data) => {
-      const { studentId } = data;
-      console.log(`Admin requesting camera check for student ${studentId}`);
-      // Send to the specific student
-      io.to(room).emit("student_camera_check_request", {
-        studentId,
-        timestamp: new Date().toISOString(),
-      });
-    });
-
-    // Admin terminate exam
-    socket.on("admin_terminate_exam", (data) => {
-      const { studentId } = data;
-      console.log(`Admin terminating exam for student ${studentId}`);
-      // Send to the specific student
-      io.to(room).emit("student_exam_terminated", {
-        studentId,
         timestamp: new Date().toISOString(),
       });
     });

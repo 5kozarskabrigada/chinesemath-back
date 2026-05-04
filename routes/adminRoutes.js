@@ -24,6 +24,7 @@ import {
   getExamSessions,
   getStudentSessionDetail,
 } from "../controllers/adminController.js";
+import { getPerStudentUsage, getUsageSummary } from "../controllers/usageController.pg.js";
 import { authMiddleware, adminMiddleware } from "../middleware/authMiddleware.js";
 
 // ─── Recycle Bin ───────────────────────────────────────────────────────────
@@ -81,6 +82,10 @@ router.get("/exams/:examId/monitoring-events", getMonitoringEvents);
 // Exam Sessions
 router.get("/exams/:examId/sessions", getExamSessions);
 router.get("/exams/:examId/sessions/:studentId", getStudentSessionDetail);
+
+// Usage & Cost Tracking
+router.get("/usage/per-student", getPerStudentUsage);
+router.get("/usage/summary", getUsageSummary);
 
 // ─── Recycle Bin ───────────────────────────────────────────────────────────
 // List all deleted items

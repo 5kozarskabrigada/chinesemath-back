@@ -10,6 +10,7 @@ import examRoutes from "./routes/examRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import phoneCameraRoutes from "./routes/phoneCameraRoutes.js";
 import { pool } from "./db.js";
+import { usageTracker } from "./middleware/usageTracker.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -26,6 +27,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+// Per-request usage tracking (fire-and-forget, never blocks responses)
+app.use(usageTracker);
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -125,6 +129,59 @@ io.on("connection", (socket) => {
         `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
         [examId, targetStudentId, 'monitoring_disqualify', JSON.stringify({ timestamp })]
       ).catch(err => console.error('Failed to save disqualification:', err.message));
+    });
+
+    // Admin audio communication events
+    socket.on("admin_toggle_microphone", (data) => {
+      const { targetStudentId, muted } = data;
+      console.log(`Admin ${muted ? 'muted' : 'unmuted'} microphone for student ${targetStudentId}`);
+      const timestamp = new Date().toISOString();
+      io.to(room).emit("microphone_toggle", {
+        studentId: targetStudentId,
+        muted,
+        timestamp,
+      });
+      // Log microphone control
+      pool.query(
+        `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+        [examId, targetStudentId, 'microphone_control', JSON.stringify({ muted, timestamp })]
+      ).catch(err => console.error('Failed to save microphone control:', err.message));
+    });
+
+    socket.on("admin_start_audio", (data) => {
+      const { targetStudentId } = data;
+      console.log(`Admin started speaking to student ${targetStudentId}`);
+      io.to(room).emit("proctor_audio_start", {
+        studentId: targetStudentId,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    socket.on("admin_stop_audio", (data) => {
+      const { targetStudentId } = data;
+      console.log(`Admin stopped speaking to student ${targetStudentId}`);
+      io.to(room).emit("proctor_audio_stop", {
+        studentId: targetStudentId,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Admin call request responses
+    socket.on("admin_respond_call", (data) => {
+      const { targetStudentId, accepted, message } = data;
+      console.log(`Admin ${accepted ? 'accepted' : 'dismissed'} call from student ${targetStudentId}`);
+      const timestamp = new Date().toISOString();
+      io.to(room).emit("call_request_response", {
+        studentId: targetStudentId,
+        accepted,
+        message,
+        timestamp,
+      });
+      // Log call response
+      pool.query(
+        `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+        [examId, targetStudentId, 'call_response', JSON.stringify({ accepted, message, timestamp })]
+      ).catch(err => console.error('Failed to save call response:', err.message));
     });
 
     socket.on("disconnect", () => {
@@ -245,6 +302,54 @@ io.on("connection", (socket) => {
         studentId: data.studentId,
         examId: data.examId,
         timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Audio communication events
+    socket.on("student_audio_stream", (data) => {
+      // Forward audio data to admins monitoring this exam
+      socket.to(room).emit("student_audio_stream", {
+        studentId,
+        socketId: socket.id,
+        audioLevel: data.audioLevel,
+        audioData: data.audioData,
+        timestamp: data.timestamp,
+      });
+    });
+
+    socket.on("audio_status", (data) => {
+      // Forward audio status to admins
+      socket.to(room).emit("audio_status", {
+        studentId,
+        socketId: socket.id,
+        ...data,
+      });
+    });
+
+    // Call request system
+    socket.on("call_request", (data) => {
+      console.log(`Call request from student ${studentId}: ${data.message}`);
+      const timestamp = new Date().toISOString();
+      // Notify admins about the call request
+      socket.to(room).emit("call_request", {
+        studentId,
+        socketId: socket.id,
+        message: data.message,
+        timestamp,
+      });
+      // Log the call request
+      pool.query(
+        `INSERT INTO exam_logs (exam_id, user_id, event_type, event_data) VALUES ($1, (SELECT id FROM users WHERE id::text = $2 LIMIT 1), $3, $4)`,
+        [examId, studentId, 'call_request', JSON.stringify({ message: data.message, timestamp })]
+      ).catch(err => console.error('Failed to save call request:', err.message));
+    });
+
+    socket.on("cancel_call_request", (data) => {
+      console.log(`Call request cancelled by student ${studentId}`);
+      socket.to(room).emit("call_request_cancelled", {
+        studentId,
+        socketId: socket.id,
+        timestamp: data.timestamp,
       });
     });
 

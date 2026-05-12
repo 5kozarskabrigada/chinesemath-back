@@ -86,7 +86,8 @@ export async function submitExam(req, res) {
 
   const client = await pool.connect();
   try {
-    await client.query("BEGIN");
+    // Use SERIALIZABLE isolation to prevent race conditions
+    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
 
     // Verify exam exists and is published
     const examResult = await client.query(
@@ -95,17 +96,25 @@ export async function submitExam(req, res) {
     );
     if (!examResult.rows[0]) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Exam not found" });
+      return res.status(404).json({ error: "Exam not found or not available" });
     }
 
-    // Prevent double submission
+    // Check for existing submission with row lock to prevent race conditions
     const existingSub = await client.query(
-      `SELECT id, status FROM exam_submissions WHERE exam_id = $1 AND user_id = $2`,
+      `SELECT id, status FROM exam_submissions 
+       WHERE exam_id = $1 AND user_id = $2 
+       FOR UPDATE`,
       [examId, req.user.id]
     );
+    
+    // Prevent double submission
     if (existingSub.rows[0]?.status === "submitted") {
       await client.query("ROLLBACK");
-      return res.status(409).json({ error: "Already submitted" });
+      console.warn(`Duplicate submission attempt: user ${req.user.id}, exam ${examId}`);
+      return res.status(409).json({ 
+        error: "You have already submitted this exam",
+        submissionId: existingSub.rows[0].id 
+      });
     }
 
     // Fetch correct answers
@@ -131,6 +140,7 @@ export async function submitExam(req, res) {
     // Upsert submission
     let submissionId;
     if (existingSub.rows[0]) {
+      // Update existing in_progress submission
       await client.query(
         `UPDATE exam_submissions
          SET answers = $1, total_correct = $2, total_questions = $3, score = $4,
@@ -139,14 +149,30 @@ export async function submitExam(req, res) {
         [JSON.stringify(answers), totalCorrect, totalQuestions, score, timeSpent || 0, existingSub.rows[0].id]
       );
       submissionId = existingSub.rows[0].id;
+      console.log(`Updated submission ${submissionId} for user ${req.user.id}, exam ${examId}`);
     } else {
-      const subInsert = await client.query(
-        `INSERT INTO exam_submissions (exam_id, user_id, answers, total_correct, total_questions, score, time_spent, status, submitted_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'submitted', NOW())
-         RETURNING id`,
-        [examId, req.user.id, JSON.stringify(answers), totalCorrect, totalQuestions, score, timeSpent || 0]
-      );
-      submissionId = subInsert.rows[0].id;
+      // Insert new submission
+      try {
+        const subInsert = await client.query(
+          `INSERT INTO exam_submissions (exam_id, user_id, answers, total_correct, total_questions, score, time_spent, status, submitted_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'submitted', NOW())
+           RETURNING id`,
+          [examId, req.user.id, JSON.stringify(answers), totalCorrect, totalQuestions, score, timeSpent || 0]
+        );
+        submissionId = subInsert.rows[0].id;
+        console.log(`Created new submission ${submissionId} for user ${req.user.id}, exam ${examId}`);
+      } catch (insertError) {
+        // Handle unique constraint violation (23505 is PostgreSQL duplicate key error)
+        if (insertError.code === '23505') {
+          await client.query("ROLLBACK");
+          console.warn(`Caught duplicate key violation: user ${req.user.id}, exam ${examId}`);
+          return res.status(409).json({ 
+            error: "Submission already exists. This may be due to clicking submit multiple times.",
+            hint: "Your exam has already been submitted. Please check your results."
+          });
+        }
+        throw insertError;
+      }
     }
 
     // Insert individual answer records
@@ -161,11 +187,25 @@ export async function submitExam(req, res) {
     }
 
     await client.query("COMMIT");
+    console.log(`Successfully submitted exam ${examId} for user ${req.user.id}: ${totalCorrect}/${totalQuestions} correct`);
     res.json({ submissionId, totalCorrect, totalQuestions, score });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("submitExam error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    
+    // Provide more helpful error messages
+    if (err.code === '40001') {
+      // Serialization failure - concurrent transaction conflict
+      return res.status(409).json({ 
+        error: "Submission conflict detected. Please try again.",
+        hint: "Multiple submission attempts were detected. Please wait and try again."
+      });
+    }
+    
+    res.status(500).json({ 
+      error: "Failed to submit exam. Please try again or contact support.",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   } finally {
     client.release();
   }

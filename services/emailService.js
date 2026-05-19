@@ -14,6 +14,7 @@ const transporter = nodemailer.createTransport({
   },
   tls: {
     ciphers: 'SSLv3',
+    rejectUnauthorized: false
   },
 });
 
@@ -30,6 +31,8 @@ transporter.verify((error, success) => {
  * Send welcome email with login credentials
  */
 export async function sendWelcomeEmail(email, { firstName, lastName, username, password }) {
+  console.log(`[EmailService] Attempting to send welcome email to: ${email}`);
+  
   const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -173,6 +176,8 @@ export async function sendWelcomeEmail(email, { firstName, lastName, username, p
  * Send exam submission PDF via email
  */
 export async function sendSubmissionEmail(email, { firstName, lastName, examTitle, score, totalQuestions, pdfBuffer }) {
+  console.log(`[EmailService] Attempting to send submission email to: ${email}`);
+  
   const htmlContent = `
 <!DOCTYPE html>
 <html>

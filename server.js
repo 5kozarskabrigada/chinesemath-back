@@ -166,6 +166,17 @@ io.on("connection", (socket) => {
       });
     });
 
+    // Proctor audio streaming to students
+    socket.on("proctor_audio_stream", (data) => {
+      const { targetStudentId, audioData, timestamp } = data;
+      // Forward audio data to target student only
+      io.to(room).emit("proctor_audio_stream", {
+        targetStudentId,
+        audioData,
+        timestamp,
+      });
+    });
+
     // Admin call request responses
     socket.on("admin_respond_call", (data) => {
       const { targetStudentId, accepted, message } = data;

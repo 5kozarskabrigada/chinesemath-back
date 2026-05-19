@@ -23,6 +23,8 @@ import {
   getMonitoringEvents,
   getExamSessions,
   getStudentSessionDetail,
+  generateSubmissionPDFDownload,
+  emailSubmissionPDF,
 } from "../controllers/adminController.js";
 import { getPerStudentUsage, getUsageSummary } from "../controllers/usageController.pg.js";
 import { authMiddleware, adminMiddleware } from "../middleware/authMiddleware.js";
@@ -102,5 +104,9 @@ router.delete("/recycle-bin/users/:userId", permanentlyDeleteUser);
 router.delete("/recycle-bin/exams/:examId", permanentlyDeleteExam);
 router.delete("/recycle-bin/questions/:questionId", permanentlyDeleteQuestion);
 router.delete("/recycle-bin/classrooms/:classroomId", permanentlyDeleteClassroom);
+
+// ─── PDF Generation & Email ────────────────────────────────────────────────
+router.get("/submissions/:submissionId/pdf", generateSubmissionPDFDownload);
+router.post("/submissions/:submissionId/email", emailSubmissionPDF);
 
 export default router;

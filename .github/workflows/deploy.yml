@@ -1,4 +1,5 @@
 name: Deploy Backend
+# Deploys backend, frontend, and nginx configuration
 
 on:
   push:

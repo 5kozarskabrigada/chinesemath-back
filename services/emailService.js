@@ -18,14 +18,17 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Verify transporter configuration
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('Email service configuration error:', error);
-  } else {
-    console.log('✅ Email service ready to send messages');
-  }
-});
+// Verify transporter configuration (disabled - will verify on first send)
+// Microsoft 365 sometimes blocks verify() calls but allows actual sending
+// transporter.verify((error, success) => {
+//   if (error) {
+//     console.error('Email service configuration error:', error);
+//   } else {
+//     console.log('✅ Email service ready to send messages');
+//   }
+// });
+
+console.log('📧 Email service initialized (credentials will be verified on first send)');
 
 /**
  * Send welcome email with login credentials

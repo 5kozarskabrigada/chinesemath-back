@@ -22,6 +22,11 @@ jobs:
             git reset --hard origin/main
             echo DATABASE_URL="${{ secrets.DATABASE_URL }}" > .env
             echo JWT_SECRET="${{ secrets.JWT_SECRET }}" >> .env
+            echo EMAIL_HOST="${{ secrets.EMAIL_HOST }}" >> .env
+            echo EMAIL_PORT="${{ secrets.EMAIL_PORT }}" >> .env
+            echo EMAIL_SECURE="${{ secrets.EMAIL_SECURE }}" >> .env
+            echo EMAIL_USER="${{ secrets.EMAIL_USER }}" >> .env
+            echo EMAIL_PASSWORD="${{ secrets.EMAIL_PASSWORD }}" >> .env
             docker compose down --remove-orphans -v --timeout 30 || true
             docker system prune -f
             sleep 3

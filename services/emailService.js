@@ -34,7 +34,14 @@ console.log('📧 Email service initialized (credentials will be verified on fir
  * Send welcome email with login credentials
  */
 export async function sendWelcomeEmail(email, { firstName, lastName, username, password }) {
-  console.log(`[EmailService] Attempting to send welcome email to: ${email}`);
+  console.log('📧 ========== SENDING WELCOME EMAIL ==========');
+  console.log('📧 To:', email);
+  console.log('📧 From:', process.env.EMAIL_USER);
+  console.log('📧 Name:', firstName, lastName);
+  console.log('📧 Username:', username);
+  console.log('📧 SMTP Host:', process.env.EMAIL_HOST);
+  console.log('📧 SMTP Port:', process.env.EMAIL_PORT);
+  console.log('📧 ==========================================');
   
   const htmlContent = `
 <!DOCTYPE html>
@@ -166,11 +173,23 @@ export async function sendWelcomeEmail(email, { firstName, lastName, username, p
   };
 
   try {
+    console.log('📤 Calling transporter.sendMail()...');
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Welcome email sent:', info.messageId);
+    console.log('✅ ========== EMAIL SENT SUCCESSFULLY ==========');
+    console.log('✅ MessageId:', info.messageId);
+    console.log('✅ Response:', info.response);
+    console.log('✅ Accepted:', info.accepted);
+    console.log('✅ Rejected:', info.rejected);
+    console.log('✅ ===========================================');
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Failed to send welcome email:', error);
+    console.error('❌ ========== EMAIL SEND FAILED ==========');
+    console.error('❌ Error Code:', error.code);
+    console.error('❌ Error Message:', error.message);
+    console.error('❌ Response Code:', error.responseCode);
+    console.error('❌ Command:', error.command);
+    console.error('❌ Full Error:', error);
+    console.error('❌ =========================================');
     throw error;
   }
 }
@@ -179,7 +198,14 @@ export async function sendWelcomeEmail(email, { firstName, lastName, username, p
  * Send exam submission PDF via email
  */
 export async function sendSubmissionEmail(email, { firstName, lastName, examTitle, score, totalQuestions, pdfBuffer }) {
-  console.log(`[EmailService] Attempting to send submission email to: ${email}`);
+  console.log('📧 ========== SENDING SUBMISSION EMAIL ==========');
+  console.log('📧 To:', email);
+  console.log('📧 From:', process.env.EMAIL_USER);
+  console.log('📧 Name:', firstName, lastName);
+  console.log('📧 Exam:', examTitle);
+  console.log('📧 Score:', score + '/' + totalQuestions);
+  console.log('📧 PDF Size:', pdfBuffer.length, 'bytes');
+  console.log('📧 ==============================================');
   
   const htmlContent = `
 <!DOCTYPE html>
@@ -282,11 +308,23 @@ export async function sendSubmissionEmail(email, { firstName, lastName, examTitl
   };
 
   try {
+    console.log('📤 Calling transporter.sendMail()...');
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Submission email sent:', info.messageId);
+    console.log('✅ ========== EMAIL SENT SUCCESSFULLY ==========');
+    console.log('✅ MessageId:', info.messageId);
+    console.log('✅ Response:', info.response);
+    console.log('✅ Accepted:', info.accepted);
+    console.log('✅ Rejected:', info.rejected);
+    console.log('✅ ===========================================');
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Failed to send submission email:', error);
+    console.error('❌ ========== EMAIL SEND FAILED ==========');
+    console.error('❌ Error Code:', error.code);
+    console.error('❌ Error Message:', error.message);
+    console.error('❌ Response Code:', error.responseCode);
+    console.error('❌ Command:', error.command);
+    console.error('❌ Full Error:', error);
+    console.error('❌ =========================================');
     throw error;
   }
 }

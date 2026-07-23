@@ -1,6 +1,7 @@
 import { pool } from "../db.js";
 import bcrypt from "bcryptjs";
 import { generateUsername, generatePassword } from "../utils/credentials.js";
+import { mailerConfigured, getTransporter } from "../utils/mailer.js";
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
@@ -276,7 +277,9 @@ export async function getSubmissionDetail(req, res) {
   const { submissionId } = req.params;
   try {
     const subResult = await pool.query(
-      `SELECT es.*, u.username, u.first_name, u.last_name, e.title AS exam_title
+      // u.email is needed by the admin UI to enable "Email Results"; without it the button's
+      // disabled check saw undefined and stayed greyed out forever.
+      `SELECT es.*, u.username, u.email, u.first_name, u.last_name, e.title AS exam_title
        FROM exam_submissions es
        JOIN users u ON u.id = es.user_id
        JOIN exams e ON e.id = es.exam_id
@@ -845,5 +848,68 @@ export async function permanentlyDeleteClassroom(req, res) {
   } catch (err) {
     console.error("permanentlyDeleteClassroom error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// ─── Submission results email ────────────────────────────────────────────────
+
+// The admin UI called POST /submissions/:id/email long before this existed, so the button always
+// 404'd. The PDF is rendered on the client (html2pdf) and posted here as base64 — that reuses the
+// exact document the admin previewed and keeps a headless renderer off the server.
+export async function emailSubmissionPDF(req, res) {
+  const { submissionId } = req.params;
+  const { pdfBase64, filename } = req.body || {};
+
+  if (!mailerConfigured()) {
+    return res.status(503).json({
+      error: "Email is not configured on this server. Set SMTP_HOST, SMTP_USER and SMTP_PASS.",
+    });
+  }
+  if (!pdfBase64) {
+    return res.status(400).json({ error: "Missing PDF data" });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT es.id, es.score, es.total_correct, es.total_questions,
+              u.email, u.first_name, u.last_name, e.title AS exam_title
+       FROM exam_submissions es
+       JOIN users u ON u.id = es.user_id
+       JOIN exams e ON e.id = es.exam_id
+       WHERE es.id = $1`,
+      [submissionId]
+    );
+    const sub = result.rows[0];
+    if (!sub) return res.status(404).json({ error: "Submission not found" });
+    if (!sub.email || sub.email.includes("@placeholder.local")) {
+      return res.status(400).json({ error: "This student has no valid email address" });
+    }
+
+    const base64 = String(pdfBase64).replace(/^data:application\/pdf(;[^,]*)?,/, "");
+    const buffer = Buffer.from(base64, "base64");
+    // Reject anything that is not actually a PDF, so a broken client can't mail students garbage.
+    if (buffer.subarray(0, 4).toString("latin1") !== "%PDF") {
+      return res.status(400).json({ error: "Attachment is not a valid PDF" });
+    }
+
+    const studentName = [sub.first_name, sub.last_name].filter(Boolean).join(" ") || "student";
+    await getTransporter().sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: sub.email,
+      subject: `Your results — ${sub.exam_title}`,
+      text: `Hi ${sub.first_name || "there"},\n\nYour results for "${sub.exam_title}" are attached.\n\n`
+        + `Score: ${sub.score}% (${sub.total_correct}/${sub.total_questions} correct)\n\n`
+        + `Good luck with your studies.`,
+      attachments: [{
+        filename: filename || `${studentName.replace(/\s+/g, "_")}_Results.pdf`,
+        content: buffer,
+        contentType: "application/pdf",
+      }],
+    });
+
+    res.json({ sent: true, to: sub.email });
+  } catch (err) {
+    console.error("emailSubmissionPDF error:", err);
+    res.status(500).json({ error: err.message || "Failed to send email" });
   }
 }

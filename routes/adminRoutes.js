@@ -10,6 +10,7 @@ import {
   deleteExam,
   getSubmissions,
   getSubmissionDetail,
+  emailSubmissionPDF,
   getDashboardStats,
   getClassrooms,
   getClassroomById,
@@ -62,6 +63,7 @@ router.delete("/exams/:examId", deleteExam);
 // Submissions
 router.get("/submissions", getSubmissions);
 router.get("/submissions/:submissionId", getSubmissionDetail);
+router.post("/submissions/:submissionId/email", emailSubmissionPDF);
 
 // Classrooms
 router.get("/classrooms", getClassrooms);
